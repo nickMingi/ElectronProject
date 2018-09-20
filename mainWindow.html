@@ -90,6 +90,28 @@
             //doc.quit(0);
         });
 
+        ipcRenderer.on("DB:Login admin",function(e){
+            alert("Please login ID: admin PW: admin ");
+        });
+
+        ipcRenderer.on("DB:use DB fail",function(e,err){
+            if(confirm("Do you want to create database? since there are none"))
+            {
+                ipcRenderer.send("DB:Create Database");
+            }else{
+                alert("Use DB Fail You need to create 'stutool' database");
+            }
+        });
+
+        ipcRenderer.on("DB:Open Fail",function(e,err){
+            alert("Connection Fail: Please check your password or Mysql Installation");
+            alert("[Code]"+err);
+        });
+        ipcRenderer.on("DB:Query Fail",function(e,err){
+            alert("Query Fail: Please check your data table");
+            alert("[Code]"+err);
+        });
+
         ipcRenderer.on('save-file',function(e,id){
             var tabpage = priorityQueue.frontDiv();
             var tabPage = document.querySelector("#"+tabpage);

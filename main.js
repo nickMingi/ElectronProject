@@ -3,11 +3,11 @@ const url = require('url');
 const path = require('path');
 const mysql = require('mysql');
 const dialog = electron.dialog;
-const connection = mysql.createConnection({
+var connection = mysql.createConnection({
     host: 'localhost',
     user: 'root',
     password: '1234',
-    database: 'stutool',
+    database: 'stutool2'
 });
 var dbconnect = 0;
 var loginSession = 0;
@@ -16,8 +16,6 @@ const { app, BrowserWindow, Menu, ipcMain, globalShortcut } = require('electron'
 
 let mainWindow;
 let memberWindow;
- 
-
 
 // Listen for app to be ready
 function createWindow() {
@@ -43,6 +41,7 @@ function createWindow() {
 
     mainWindow.on('closed', function () {
         mainWindow = null;
+        connection.end();
         app.quit();
     });
 };
@@ -136,17 +135,23 @@ function saveFile(){
 
 function dbOpenCheck() {
     if (dbconnect != 1) {
+        console.log("dpconnect inside");
+
         connection.connect(function (err) {
             if (err) {
-                console.log(err);
+                console.log(err.code);
+                console.log(err.errno);
                 console.log("Connection Fail!");
-                return;
+                errcheck(err.errno);
+                //mainWindow.send("DB:Open Fail",err.errno);
+                return false;
             } else {
                 dbconnect = 1;
                 console.log("Connected!");
             }
         });
     }
+    return true;
 }
 
 function filenameCutter(fileName)
@@ -159,10 +164,11 @@ function filenameCutter(fileName)
 function dbClose() {
     console.log("Recieve: DB close");
     if (loginSession != 0) {
-        connection.end();
+        console.log(loginSession);
+        console.log(dbconnect);
+        loginSession = 0;
         mainWindow.webContents.send('DB:CloseSuccess');
     }
-    loginSession = 0;
 }
 
 ipcMain.on('memberWindow-open', function (e) {
@@ -207,27 +213,135 @@ ipcMain.on('DB:InsertMember', function (e, mid, mpw, muniversity, menyear, menmo
             console.log('Query Fail!');
         } else {
             console.log('success!');
-            console.log(result);
-            locateToLogin();
+            mainWindow.webContents.send("DB:Login admin");
         }
     })
 });
 
 ipcMain.on('Login-mainWindow', function (e, id, pw) {
-    dbOpenCheck();
-    var query = connection.query("select * from member where id ='" + id + "' and pw='" + pw + "'", function (err, result, fields) {
-        if (err) {
-            console.log(err);
-            console.log('Query Fail!');
-        } else {
-            console.log('success!');
-            console.log(result);
-            mainWindow.webContents.send('login-Success', result);
-            loginSession = result[0].seq;
-            console.log(loginSession);
-        }
-    });
+    var check = dbOpenCheck();
+        selectmember(id,pw);
+    
 });
+
+        function selectmember(id,pw)
+        {
+            var query = connection.query("select * from member where id ='" + id + "' and pw='" + pw + "'", function (err, result, fields) {
+                if (err) {
+                    console.log(err.code);
+                    console.log('Query Fail!');
+                    mainWindow.webContents.send("DB:Query Fail",err.errno);
+                    errcheck(err.errno);
+                } else {
+                    console.log('success!');
+                    console.log(result);
+                    mainWindow.webContents.send('login-Success', result);
+                    loginSession = result[0].seq;
+                    console.log(loginSession);
+                }
+            });
+        }
+        function querysend(sentquery){
+            dbOpenCheck();
+            var query = connection.query(sentquery, function (err, result, fields) {
+                if (err) {
+                    console.log(err.code);
+                    console.log('DB:Query Fail!');
+                    console.log(sentquery);
+                    if(sentquery == 'use stutool'){
+                        mainWindow.webContents.send("DB:use DB fail",err.errno);
+                    }
+                } else {
+                    console.log('DB:Query success!');
+                    console.log(result);
+                    console.log(sentquery);
+                    if(sentquery == 'create database stutool2')
+                    {
+                        createTable();
+                    }
+                }
+            });
+        }
+
+        ipcMain.on("DB:Create Database", function(e){
+            console.log("DB:Create Database() .js ");
+            connection = mysql.createConnection({
+                host: 'localhost',
+                user: 'root',
+                password: '1234'
+            });
+            connection.connect(function (err) {
+                if (err) {
+                    console.log(err.code);
+                    console.log(err.errno);
+                    console.log("Re:Connection Fail!");
+                    errcheck(err.errno);
+                    //mainWindow.send("DB:Open Fail",err.errno);
+                    return false;
+                } else {
+                    dbconnect = 1;
+                    console.log("Connected!");
+                }
+            });
+            querysend("create database stutool2");
+        });
+
+
+        function errcheck(key){
+            console.log('DB:error check()');
+            switch (key) {
+                case 1046:
+                case 1049:
+                    createDB();
+                    break;
+                
+                default:
+                    break;
+            }
+        }
+
+        function createDB(){
+            // DB check
+            if('stutool' != connection.config.database)
+            {
+                console.log("Create DB !!");
+                querysend('use stutool');
+            }else{
+                console.log("Create DB Fail = samename");
+            }
+        }
+
+        function createTable(){
+            console.log("Real Create Table!");
+            querysend('use stutool2');
+            var query = connection.query("CREATE TABLE member (seq int(255) AUTO_INCREMENT primary key not null, id varchar(10) unique not null, pw varchar(16) not null, university varchar(12), enyear int(4), enmonth int(1) )",
+             function (err, result, fields) {
+                if (err) {
+                    console.log(err.code);
+                    console.log(err.errno);
+                    console.log('Create Table Fail!');
+                    errcheck(err.errno);
+                } else {
+                    console.log('success!');
+                    var post = { id: 'admin', pw: 'admin', university: 'dsu', enyear: 2018, enmonth: 2 };
+                    console.log(post);
+                    var query = connection.query("insert into member set ?", post, function (err, result, fields) {
+                        if (err) {
+                            console.log(err);
+                            console.log('Admin Query Fail!');
+                        } else {
+                            console.log('success! Admin Created');
+                            console.log(result);
+                            locateToLogin();
+                        }
+                    })
+                }
+            });
+        }
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const mainMenuTemplate = [
     {
