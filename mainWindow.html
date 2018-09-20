@@ -104,11 +104,13 @@
         ipcRenderer.on("F:save File",function(e,name,filename,data){
             fs.writeFile(filename, data, function(err) {
                 if(err) {
+                    alert("File save failed! "+ err);
                     return console.log(err);
                 }
                 console.log("The file was saved!");
+                alert("File save success!");
                 var li = document.getElementById("active collection");
-                li.value = name;
+                li.innerHTML = name;
             }); 
         });
 
