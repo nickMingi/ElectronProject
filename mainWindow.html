@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="app" >
+<head>
+    <title>stutool</title>
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js"></script>
+	<script src="./assets/js/jquery-linedtextarea.js"></script>
+	<link href="./css/jquery-linedtextarea.css" type="text/css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-rc.2/css/materialize.min.css">
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <link href="./css/mainWindow.css" type="text/css" rel="stylesheet" />
+    <link rel="stylesheet" type="text/css" href="css/default.css">
+    <script src="https://code.angularjs.org/1.6.4/angular.min.js"></script>
+    <script src="https://code.angularjs.org/1.6.4/angular-route.min.js"></script>
+</head>
+<body >
+        <div id="leftside" ng-view class="ng-scope">
+            <!--> home/lefthome.html </!-->
+        </div>
+        
+        <div class="mainpage" id="rightside" ng-include src="'./home/righthome.html'">
+            <!--> home/righthome.html </!-->
+        </div>
+    
+        <script src="./assets/js/option-remote.js"></script>
+        <script src="./assets/js/mqueue.js"></script>
+        <script src="./assets/js/read-write-file.js"></script>
+        <script src="./assets/js/mainWindow.js"></script>
+        
+    <script>
+        require('./renderer.js');   
+        const electron = require('electron');
+        const fs = require('fs');
+        const {ipcRenderer} = electron;
+        const form = document.querySelector('form');
+       
+        const ul = document.querySelector('ul');
+        var llist = ["membership","login"];
+        var clist = ["collegeinfo","classinfo"];
+        var slist = ["schedule"];
+        var dlist = ["mystudy"];
+        var ID = null;
+        var incrementtabl = 0;
+        var activeTabObject = null;
+        var closedtabl = 0;
+        var priorityQueue = new PriorityQueue();
+
+        var includeList = document.querySelectorAll("[data-include]");
+        var ajax = [];
+        for(i = 0; i < includeList.length; i++){
+            (function(i){
+                var el = includeList.item(i);
+                var url = el.dataset.include;
+                ajax[i] = new XMLHttpRequest();
+                ajax[i].onreadystatechange = function(){
+                    if(ajax[i].readyState == "4" && ajax[i].status == "200"){
+                        el.outerHTML = ajax[i].responseText;
+                    }
+                };
+                ajax[i].open("GET", url, true);
+                ajax[i].send();
+            })(i);
+        };
+
+        ipcRenderer.on("F:open File",function(e,file,filename){
+            console.log("Open File HTML");
+           /* var doc = new ActiveXObject("Word.Application");
+            doc.Visible = false;
+            doc.Document.open(document.all.hello.value);
+
+            var txt;
+            txt = doc.Documents(document.all.hello.value).Content;*/
+
+            fs.readFile(file,'utf-8', function(err, data){
+                x = document.getElementsByClassName("mainpage-contents");
+                for (i = 0; i < x.length; i++) {
+                    x[i].style.display = "none";
+                }
+                if( (priorityQueue.count()/2) >= 5)
+                {
+                    alert("Tabs can not exceed 5!");
+                }else{
+                    const li = liCreater(filename);
+                    const div = divCreater('test'+incrementtabl,data);
+                    priorityQueue.enqueue(li,div,incrementtabl);
+                    console.log(priorityQueue.printQueue());
+                    
+                    incrementtabl++;
+                }
+            });
+            //doc.quit(0);
+        });
+
+        ipcRenderer.on('save-file',function(e,id){
+            var tabpage = priorityQueue.frontDiv();
+            var tabPage = document.querySelector("#"+tabpage);
+            if(tabPage == null)
+            {
+                console.log("tab page is null!");
+                alert("No file to save!");
+            }else{
+                ipcRenderer.send("open-directory-dialog",tabPage.children[0].children[0].value);
+            }
+        });
+        ipcRenderer.on("F:save File",function(e,name,filename,data){
+            fs.writeFile(filename, data, function(err) {
+                if(err) {
+                    return console.log(err);
+                }
+                console.log("The file was saved!");
+                var li = document.getElementById("active collection");
+                li.value = name;
+            }); 
+        });
+
+        function submitForm(e){
+            e.preventDefault();
+            console.log("Sending : Login");
+            const id = document.querySelector('#id').value;
+            const pw = document.querySelector('#pw').value;
+            console.log("ID : "+id+" PW : "+pw);
+            ipcRenderer.send('Login-mainWindow',id,pw);
+        }
+        
+        ipcRenderer.on('open-directory-dialog', function(e,item){
+            console.log("Getting : filename "+ item);
+            ul.className = 'collection';
+            const li = document.createElement('li');
+            li.className = 'collection-item';
+            const itemText = document.createTextNode(item);
+            li.appendChild(itemText);
+            ul.appendChild(li);    
+        });
+
+        ipcRenderer.on('login-Success',function(e,result){
+            alert('Login Success!');
+            console.log('Recieve : login success');
+            ID = result[0].id;
+            console.log('ID = '+ID);
+            loginsuccess();
+        });
+
+        ipcRenderer.on('login-activate',function(e){
+            alert('Please Log in!');
+            console.log('Recieve : login activate');
+            login();
+        });
+
+        ipcRenderer.on('DB:CloseSuccess',function(e){
+            alert('Logout Success!');
+            console.log('Recieve : logout success');
+            llist = ["membership","login"];
+            expandLink(event,'L',llist);
+            document.getElementById('L-myinfo').style.display = 'none';
+        });
+
+        ipcRenderer.on('global:key',function(e,key){
+            switch (key) {
+                case 'a':  
+                    expandLink(event, 'L', llist);
+                    break;
+                case 'd':  
+                    expandLink(event, 'C', clist);
+                    break;
+                case 'f':  
+                    expandLink(event, 'S', slist);
+                    break;
+                case 'g':  
+                    expandLink(event, 'D', dlist);
+                    break;
+                default:
+                    break;
+            }
+        });
+        function textareaLine(){
+            /*$("#textarea"+(incrementtabl-1)).linedtextarea(
+                    {selectedLine: 1}
+            );*/
+        };
+
+        function mystudy()
+        {
+            x = document.getElementsByClassName("mainpage-contents");
+            for (i = 0; i < x.length; i++) {
+                x[i].style.display = "none";
+            }
+                if( (priorityQueue.count()/2) >= 5)
+                {
+                    alert("Tabs can not exceed 5!");
+                }else{
+                    const li = liCreater('test'+incrementtabl);
+                    const div = divCreater('test'+incrementtabl);
+                    priorityQueue.enqueue(li,div,incrementtabl);
+                    console.log(priorityQueue.printQueue());
+                    
+                    incrementtabl++;
+                }
+        }
+
+        function logout()
+        {
+            ipcRenderer.send('DB:DbClose');
+            llist = ["membership","login"];
+            expandLink(event,'L',llist);
+            document.getElementById('L-myinfo').style.display = 'none';
+        }
+
+        function membership()
+        {
+            ipcRenderer.send('memberWindow-open');
+        }
+
+        function login()
+        {
+            tabInvisible();
+            openLink(event, 'L');
+        }
+
+        function myinfo()
+        {
+            tabInvisible();
+            openLink(event, 'L-myinfo');
+            document.getElementById('myinfo-id').value=ID;
+            console.log("ID replacement succeded");
+        }
+
+        function loginsuccess()
+        {
+            document.getElementById('L').style.display="none";
+            llist = ['myinfo','logout'];
+            expandLink(event,'L',llist);
+            myinfo();
+        }
+
+        function openLink(evt, animName) {
+            console.log('openLink clicked!');
+            var i, x, tablinks;
+            x = document.getElementsByClassName("mainpage-contents");
+            for (i = 0; i < x.length; i++) {
+                x[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("row");
+            for (i = 0; i < x.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" w3-red", "");
+            }
+            document.getElementById(animName).style.display = "inline-block";
+        }
+
+        function expandLink(evt, buttonName, list){
+            console.log('expandLink clicked!');
+            var i, x, tablinks;
+                    const mul = document.querySelector("#leftside-"+buttonName+"-ul");
+                    console.log(mul);
+            tablinks = document.getElementsByClassName("row");
+            x = document.getElementsByClassName("left-ul-class");
+            for (i = 0; i < x.length; i++) {
+                x[i].innerHTML = '';
+                tablinks[i].className = tablinks[i].className.replace(" w3-red", "");
+            }
+            
+             list.forEach(function(item, index){
+                 var a = document.createElement('a');
+                 a.id = item;
+                 a.href = "javascript:"+ item +"()";
+                    var li = document.createElement('li');
+                    li.className = 'collection-item';
+                    var itemText = document.createTextNode(item);
+                    li.appendChild(itemText);
+                    a.appendChild(li);
+                    mul.appendChild(a);
+             });
+        }
+
+    </script>
+</body>
+</html>

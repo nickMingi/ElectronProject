@@ -1,0 +1,36 @@
+            <header ng-controller="headCtrl">
+                <div class="option" id="close" ng-click="close()">&#x2716;</div>
+                <div class="option" id="maximize" ng-click="maximize()">&#x1f5d6;</div>
+                <div class="option" id="minimize" ng-click="minimize()">&#x1f5d5;</div>
+            </header>
+            <div class="row" id="rightside-row">
+                <ul id="tabs" class="demo-tabs"> </ul>
+                <div id="L" class="w3-container mainpage-contents w3-animate-opacity col s8" style="display:none">
+                    <nav>
+                    <div class="nav-wrapper">
+                        <a class="brand-logo center">MemberShip</a>
+                    </div>
+                    </nav>
+                    <form onsubmit="return submitForm(event)">
+                        <input id="id" type="text" placeholder="ID"/>
+                        <input id="pw" type="password" placeholder="PW"/>
+                        <button class="btn waves-effect waves-light" type="submit" name='tmp' value='FIRST'>Login</button>
+                    </form>
+                </div>
+                <div id="L-myinfo" class="w3-container mainpage-contents w3-animate-opacity col s8" style="display:none">
+                    <nav>
+                    <div class="nav-wrapper">
+                        <a class="brand-logo center">Myinfo</a>
+                    </div>
+                    </nav>
+                    
+                        <input id="myinfo-id" type="text" readonly=true />
+                        
+                    
+                </div>
+            </div>
+
+
+            <script> 
+                 //form.addEventListener('submit', submitForm);
+            </script>

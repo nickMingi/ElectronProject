@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>   
+    <title>Document</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-rc.2/css/materialize.min.css">
+    <style>
+        .member_input{
+            width: 30%;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+      <div class="nav-wrapper">
+        <a class="brand-logo center">MemberShip</a>
+      </div>
+    </nav>
+    <form>
+        <input id="id" type="text" placeholder="ID"/>
+        <input id="pw" type="password" placeholder="PW"/>
+        <input id="university" type="text" placeholder="University"/>
+        <input id="date" type="date" />
+        <button class="btn waves-effect waves-light" type="submit" name='tmp' value='FIRST'>Join</button>
+    </form>
+    <script>
+        const electron = require('electron');
+        const {ipcRenderer} = electron;
+
+        const form = document.querySelector('form');
+        form.addEventListener('submit', submitForm);
+
+        function submitForm(e){
+            e.preventDefault();
+            const mid =  document.querySelector('#id').value;
+            const mpw =  document.querySelector('#pw').value;
+            const muniversity =  document.querySelector('#university').value;
+            const date =  document.querySelector('#date').value;
+            const menyear = date.substring(0,4);
+            var menmonth = date.substring(5,7);
+            switch(menmonth)
+            {
+                case '01':
+                case '02':
+                case '03':
+                case '04':
+                    menmonth = 0;
+                    break;
+                case '05':
+                case '06':
+                case '07':
+                    menmonth = 1;
+                    break;
+                case '08':
+                case '09':
+                case '10':
+                case '11':
+                    menmonth = 2;
+                    break;
+            }
+            ipcRenderer.send('DB:InsertMember',mid,mpw,muniversity,menyear,menmonth);
+        };
+    </script>
+</body>
+</html>
